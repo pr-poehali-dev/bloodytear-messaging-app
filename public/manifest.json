@@ -1,0 +1,34 @@
+{
+  "name": "INFERNO — Защищённый мессенджер",
+  "short_name": "INFERNO",
+  "description": "Киберпанк-мессенджер с end-to-end шифрованием",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#080808",
+  "theme_color": "#ff0033",
+  "categories": ["social", "utilities"],
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "https://cdn.poehali.dev/projects/79062c9a-1b37-4816-a7ea-2e09c700ab4a/files/d8ab29d7-f5ae-4168-bb52-7881345e99d0.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn.poehali.dev/projects/79062c9a-1b37-4816-a7ea-2e09c700ab4a/files/d8ab29d7-f5ae-4168-bb52-7881345e99d0.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Чаты",
+      "url": "/",
+      "description": "Открыть список чатов"
+    }
+  ]
+}
