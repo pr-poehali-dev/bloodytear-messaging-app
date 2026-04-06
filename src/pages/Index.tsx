@@ -41,23 +41,30 @@ function AuthScreen({ onLogin }: { onLogin: (user: User, token: string) => void 
   const [view, setView] = useState<AuthView>('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ login: '', email: '', username: '', password: '', display_name: '' });
+  const [form, setForm] = useState({ login: '', username: '', password: '' });
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const submit = async () => {
     setError(''); setLoading(true);
-    if (view === 'login') {
-      const res = await api.login({ login: form.login, password: form.password });
-      if (res.error) { setError(res.error); setLoading(false); return; }
-      localStorage.setItem('inferno_token', res.token);
-      onLogin(res.user, res.token);
-    } else {
-      if (!form.username || !form.email || !form.password) { setError('Заполните все поля'); setLoading(false); return; }
-      const res = await api.register({ username: form.username, email: form.email, password: form.password, display_name: form.display_name || form.username });
-      if (res.error) { setError(res.error); setLoading(false); return; }
-      localStorage.setItem('inferno_token', res.token);
-      onLogin(res.user, res.token);
+    try {
+      if (view === 'login') {
+        if (!form.login || !form.password) { setError('Введите никнейм и пароль'); setLoading(false); return; }
+        const res = await api.login({ login: form.login, password: form.password });
+        if (res.error) { setError(res.error); setLoading(false); return; }
+        localStorage.setItem('inferno_token', res.token);
+        onLogin(res.user, res.token);
+      } else {
+        if (!form.username || !form.password) { setError('Введите никнейм и пароль'); setLoading(false); return; }
+        if (form.password.length < 6) { setError('Пароль минимум 6 символов'); setLoading(false); return; }
+        const fakeEmail = `${form.username}@inferno.app`;
+        const res = await api.register({ username: form.username, email: fakeEmail, password: form.password, display_name: form.username });
+        if (res.error) { setError(res.error); setLoading(false); return; }
+        localStorage.setItem('inferno_token', res.token);
+        onLogin(res.user, res.token);
+      }
+    } catch {
+      setError('Ошибка соединения. Попробуй ещё раз.');
     }
     setLoading(false);
   };
@@ -90,14 +97,10 @@ function AuthScreen({ onLogin }: { onLogin: (user: User, token: string) => void 
         {/* Form */}
         <div className="space-y-3">
           {view === 'register' && (
-            <>
-              <CyberInput placeholder="Никнейм (латиница)" value={form.username} onChange={v => set('username', v)} icon="AtSign" />
-              <CyberInput placeholder="Отображаемое имя" value={form.display_name} onChange={v => set('display_name', v)} icon="User" />
-              <CyberInput placeholder="Email" value={form.email} onChange={v => set('email', v)} icon="Mail" type="email" />
-            </>
+            <CyberInput placeholder="Никнейм (только латиница, цифры)" value={form.username} onChange={v => set('username', v)} icon="AtSign" />
           )}
           {view === 'login' && (
-            <CyberInput placeholder="Никнейм или email" value={form.login} onChange={v => set('login', v)} icon="User" />
+            <CyberInput placeholder="Никнейм" value={form.login} onChange={v => set('login', v)} icon="User" />
           )}
           <CyberInput placeholder="Пароль (мин. 6 символов)" value={form.password} onChange={v => set('password', v)} icon="Lock" type="password" onEnter={submit} />
         </div>

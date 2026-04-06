@@ -78,6 +78,14 @@ def handler(event: dict, context) -> dict:
 
         token_val = secrets.token_hex(32)
         cur.execute(f"INSERT INTO {SCHEMA}.sessions (user_id, token) VALUES (%s, %s)", (user_id, token_val))
+
+        # Взаимно добавить нового пользователя всем существующим
+        cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE id != %s", (user_id,))
+        existing_ids = [r[0] for r in cur.fetchall()]
+        for eid in existing_ids:
+            cur.execute(f"INSERT INTO {SCHEMA}.contacts (user_id, contact_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (user_id, eid))
+            cur.execute(f"INSERT INTO {SCHEMA}.contacts (user_id, contact_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (eid, user_id))
+
         conn.commit()
         cur.close(); conn.close()
 
