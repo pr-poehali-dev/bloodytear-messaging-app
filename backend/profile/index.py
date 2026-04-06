@@ -1,8 +1,9 @@
 """
-Профиль пользователя: обновление данных и загрузка аватара.
-PUT / — обновить display_name, status
+Профиль пользователя: обновление данных, загрузка аватара, темы и шрифты.
+PUT / — обновить display_name, status, chat_theme, msg_font
 POST /avatar — загрузить фото (base64)
 GET /users — получить список всех пользователей (для добавления контактов)
+GET /me — получить данные текущего пользователя включая тему и шрифт
 """
 import json
 import os
@@ -24,13 +25,13 @@ def get_conn():
 
 def get_user_from_token(cur, token):
     cur.execute(
-        f"SELECT u.id, u.username, u.display_name, u.avatar_url, u.status, u.email FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > NOW()",
+        f"SELECT u.id, u.username, u.display_name, u.avatar_url, u.status, u.email, u.chat_theme, u.msg_font FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > NOW()",
         (token,)
     )
     row = cur.fetchone()
     if not row:
         return None
-    return {'id': row[0], 'username': row[1], 'display_name': row[2], 'avatar_url': row[3], 'status': row[4], 'email': row[5]}
+    return {'id': row[0], 'username': row[1], 'display_name': row[2], 'avatar_url': row[3], 'status': row[4], 'email': row[5], 'chat_theme': row[6] or 'default', 'msg_font': row[7] or 'default'}
 
 def handler(event: dict, context) -> dict:
     if event.get('httpMethod') == 'OPTIONS':
@@ -85,7 +86,7 @@ def handler(event: dict, context) -> dict:
 
         image_bytes = base64.b64decode(image_data)
         ext = body.get('ext', 'jpg').lower()
-        key = f"avatars/{user['id']}_{secrets.token_hex(8)}.{ext}"
+        key = f"avatars/{user['id']}.{ext}"
 
         s3 = boto3.client(
             's3',
@@ -96,7 +97,7 @@ def handler(event: dict, context) -> dict:
         content_type = f"image/{ext}" if ext != 'jpg' else 'image/jpeg'
         s3.put_object(Bucket='files', Key=key, Body=image_bytes, ContentType=content_type)
 
-        avatar_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/files/{key}"
+        avatar_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/files/{key}?v={secrets.token_hex(4)}"
 
         cur.execute(f"UPDATE {SCHEMA}.users SET avatar_url = %s WHERE id = %s", (avatar_url, user['id']))
         conn.commit()
@@ -104,18 +105,20 @@ def handler(event: dict, context) -> dict:
 
         return {'statusCode': 200, 'headers': CORS, 'body': json.dumps({'avatar_url': avatar_url}, ensure_ascii=False)}
 
-    # Обновление профиля
+    # Обновление профиля (включая тему и шрифт)
     if method == 'PUT':
         display_name = body.get('display_name', user['display_name'])
         status = body.get('status', user['status'])
+        chat_theme = body.get('chat_theme', user['chat_theme'])
+        msg_font = body.get('msg_font', user['msg_font'])
 
         cur.execute(
-            f"UPDATE {SCHEMA}.users SET display_name = %s, status = %s WHERE id = %s",
-            (display_name, status, user['id'])
+            f"UPDATE {SCHEMA}.users SET display_name = %s, status = %s, chat_theme = %s, msg_font = %s WHERE id = %s",
+            (display_name, status, chat_theme, msg_font, user['id'])
         )
         conn.commit()
 
-        updated = {**user, 'display_name': display_name, 'status': status}
+        updated = {**user, 'display_name': display_name, 'status': status, 'chat_theme': chat_theme, 'msg_font': msg_font}
         cur.close(); conn.close()
         return {'statusCode': 200, 'headers': CORS, 'body': json.dumps({'user': updated}, ensure_ascii=False)}
 

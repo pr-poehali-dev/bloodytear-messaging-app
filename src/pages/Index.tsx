@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { NavBtn } from '@/components/messenger/ui';
 import { AuthScreen } from '@/components/messenger/AuthScreen';
-import { ContactsSidebar, ChatWindow, ProfileView, SettingsView, AddContactView } from '@/components/messenger/ChatView';
+import { ContactsSidebar, ChatWindow, ProfileView, SettingsView, AddContactView, AdminPanel } from '@/components/messenger/ChatView';
 import type { User, Contact, Message, View } from '@/components/messenger/types';
 
 export default function Index() {
@@ -106,9 +106,19 @@ export default function Index() {
 
   const saveProfile = async () => {
     setProfileSaving(true);
-    const res = await api.updateProfile({ display_name: editName, status: editStatus });
+    const res = await api.updateProfile({ display_name: editName, status: editStatus, chat_theme: user?.chat_theme, msg_font: user?.msg_font });
     if (res.user) setUser(res.user);
     setProfileSaving(false);
+  };
+
+  const saveTheme = async (theme: string) => {
+    setUser(u => u ? { ...u, chat_theme: theme } : u);
+    await api.updateProfile({ chat_theme: theme });
+  };
+
+  const saveFont = async (font: string) => {
+    setUser(u => u ? { ...u, msg_font: font } : u);
+    await api.updateProfile({ msg_font: font });
   };
 
   const addContact = async () => {
@@ -118,6 +128,14 @@ export default function Index() {
     if (res.error) { setAddError(res.error); }
     else { setAddUsername(''); await loadContacts(); setView('chats'); }
     setAddLoading(false);
+  };
+
+  const deleteChat = async () => {
+    if (!activeContact) return;
+    await api.deleteChat(activeContact.id);
+    setMessages([]);
+    setView('chats');
+    loadContacts();
   };
 
   const logout = () => {
@@ -159,8 +177,9 @@ export default function Index() {
         <NavBtn icon="MessageSquare" label="Чаты" active={view === 'chats' || view === 'chat'} badge={totalUnread} onClick={() => setView('chats')} />
         <NavBtn icon="UserPlus" label="Добавить контакт" active={view === 'add-contact'} onClick={() => setView('add-contact')} />
         <NavBtn icon="User" label="Профиль" active={view === 'profile'} onClick={() => { setEditName(user.display_name); setEditStatus(user.status); setView('profile'); }} />
-        <div className="mt-auto">
+        <div className="mt-auto flex flex-col gap-2">
           <NavBtn icon="Settings" label="Настройки" active={view === 'settings'} onClick={() => setView('settings')} />
+          <NavBtn icon="ShieldAlert" label="Админ" active={view === 'admin'} onClick={() => setView('admin')} />
         </div>
       </div>
 
@@ -184,11 +203,14 @@ export default function Index() {
             messages={messages}
             inputText={inputText}
             userId={user.id}
+            userFont={user.msg_font}
+            userTheme={user.chat_theme}
             messagesEndRef={messagesEndRef}
             onBack={() => setView('chats')}
             onInputChange={setInputText}
             onSend={sendMessage}
             onSendImage={sendImage}
+            onDeleteChat={deleteChat}
           />
         )}
 
@@ -229,11 +251,17 @@ export default function Index() {
             onSave={saveProfile}
             onUploadAvatar={uploadAvatar}
             onLogout={logout}
+            onThemeChange={saveTheme}
+            onFontChange={saveFont}
           />
         )}
 
         {view === 'settings' && (
           <SettingsView onLogout={logout} />
+        )}
+
+        {view === 'admin' && (
+          <AdminPanel />
         )}
       </div>
     </div>

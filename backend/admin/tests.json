@@ -1,0 +1,18 @@
+{
+  "tests": [
+    {
+      "name": "Login with wrong password returns 401",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"password": "wrong"},
+      "expectedStatus": 401
+    },
+    {
+      "name": "Login with correct password returns 200",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"password": "1226"},
+      "expectedStatus": 200
+    }
+  ]
+}

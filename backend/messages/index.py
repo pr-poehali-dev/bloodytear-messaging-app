@@ -5,6 +5,7 @@ POST /contacts — добавить контакт по username
 GET /?with=USER_ID — получить историю с пользователем
 POST / — отправить сообщение (text или image base64)
 PUT /read — отметить прочитанными
+DELETE / — удалить переписку с пользователем
 """
 import json
 import os
@@ -17,7 +18,7 @@ SCHEMA = os.environ.get('MAIN_DB_SCHEMA', 't_p30447770_bloodytear_messaging')
 
 CORS = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Authorization',
 }
 
@@ -122,9 +123,22 @@ def handler(event: dict, context) -> dict:
         cur.close(); conn.close()
         return {'statusCode': 200, 'headers': CORS, 'body': json.dumps({'ok': True}, ensure_ascii=False)}
 
+    # Удалить переписку с пользователем
+    if method == 'DELETE':
+        with_id = query_params.get('with')
+        if not with_id:
+            cur.close(); conn.close()
+            return {'statusCode': 400, 'headers': CORS, 'body': json.dumps({'error': 'Нужен параметр with'}, ensure_ascii=False)}
+        cur.execute(f"""
+            DELETE FROM {SCHEMA}.messages
+            WHERE (sender_id = %s AND receiver_id = %s) OR (sender_id = %s AND receiver_id = %s)
+        """, (user_id, int(with_id), int(with_id), user_id))
+        conn.commit()
+        cur.close(); conn.close()
+        return {'statusCode': 200, 'headers': CORS, 'body': json.dumps({'ok': True}, ensure_ascii=False)}
+
     # История сообщений
     if method == 'GET':
-        query_params = event.get('queryStringParameters') or {}
         with_id = query_params.get('with')
         if not with_id:
             cur.close(); conn.close()

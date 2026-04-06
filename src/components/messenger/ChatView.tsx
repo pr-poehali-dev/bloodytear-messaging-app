@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import Icon from '@/components/ui/icon';
 import { Avatar, StatusDot, NavBtn, SettingRow } from './ui';
+import { CHAT_THEMES, MSG_FONTS } from './types';
 import type { User, Contact, Message, View } from './types';
 
 interface ContactsSidebarProps {
@@ -83,24 +84,35 @@ export function ContactsSidebar({ view, contacts, activeContact, searchQuery, us
   );
 }
 
+function getMsgFontClass(fontId?: string): string {
+  const font = MSG_FONTS.find(f => f.id === fontId);
+  return font ? font.className : 'font-sans';
+}
+
 interface ChatWindowProps {
   activeContact: Contact;
   messages: Message[];
   inputText: string;
   userId: number;
+  userFont?: string;
+  userTheme?: string;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   onBack: () => void;
   onInputChange: (v: string) => void;
   onSend: () => void;
   onSendImage: (f: File) => void;
+  onDeleteChat: () => void;
 }
 
-export function ChatWindow({ activeContact, messages, inputText, userId, messagesEndRef, onBack, onInputChange, onSend, onSendImage }: ChatWindowProps) {
+export function ChatWindow({ activeContact, messages, inputText, userId, userFont, userTheme, messagesEndRef, onBack, onInputChange, onSend, onSendImage, onDeleteChat }: ChatWindowProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const msgFontClass = getMsgFontClass(userFont);
+  const themeClass = (!userTheme || userTheme === 'default') ? 'bg-void' : `theme-${userTheme}`;
 
   return (
-    <div className="flex-1 flex flex-col bg-void hex-bg">
-      <div className="px-4 py-3 border-b border-void-border flex items-center gap-3 bg-void-surface">
+    <div className={`flex-1 flex flex-col hex-bg ${themeClass}`}>
+      <div className="px-4 py-3 border-b border-void-border flex items-center gap-3 bg-void-surface/90 backdrop-blur-sm">
         <button onClick={onBack} className="md:hidden text-muted-foreground hover:text-white mr-1">
           <Icon name="ChevronLeft" size={18} />
         </button>
@@ -112,9 +124,21 @@ export function ChatWindow({ activeContact, messages, inputText, userId, message
           <h2 className="font-orbitron text-sm text-white font-bold">{activeContact.display_name}</h2>
           <p className="text-xs font-mono text-muted-foreground">@{activeContact.username}</p>
         </div>
-        <div className="flex items-center gap-1 px-2 py-1 rounded border border-neon-green/30 bg-neon-green/5">
-          <Icon name="Lock" size={10} className="text-neon-green" />
-          <span className="text-neon-green text-xs font-mono encrypt-badge">E2E</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 px-2 py-1 rounded border border-neon-green/30 bg-neon-green/5">
+            <Icon name="Lock" size={10} className="text-neon-green" />
+            <span className="text-neon-green text-xs font-mono encrypt-badge">E2E</span>
+          </div>
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <button onClick={() => { onDeleteChat(); setConfirmDelete(false); }} className="text-xs font-orbitron text-neon-red border border-neon-red/40 rounded px-2 py-1 hover:bg-neon-red/10">ДА</button>
+              <button onClick={() => setConfirmDelete(false)} className="text-xs font-orbitron text-muted-foreground border border-void-border rounded px-2 py-1 hover:text-white">НЕТ</button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmDelete(true)} title="Удалить переписку" className="w-7 h-7 rounded border border-void-border hover:border-neon-red/50 hover:text-neon-red text-muted-foreground transition-colors flex items-center justify-center">
+              <Icon name="Trash2" size={13} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -129,6 +153,8 @@ export function ChatWindow({ activeContact, messages, inputText, userId, message
 
         {messages.map((msg) => {
           const isMe = msg.sender_id === userId;
+          const applyFont = isMe ? msgFontClass : 'font-sans';
+          const isGlitch = isMe && userFont === 'glitch';
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
               {!isMe && (
@@ -139,8 +165,15 @@ export function ChatWindow({ activeContact, messages, inputText, userId, message
               <div className="max-w-xs lg:max-w-md">
                 <div className={`rounded px-3 py-2 ${isMe ? 'bg-neon-red/10 border border-neon-red/30' : 'bg-void-elevated border border-void-border'}`}>
                   {msg.msg_type === 'image' && msg.image_url
-                    ? <img src={msg.image_url} alt="img" className="rounded max-w-[200px] max-h-[200px] object-cover" />
-                    : <p className="text-sm font-sans text-white leading-relaxed">{msg.text}</p>}
+                    ? <img src={msg.image_url} alt="img" className="rounded max-w-[220px] max-h-[220px] object-cover cursor-pointer" onClick={() => window.open(msg.image_url!, '_blank')} />
+                    : (
+                      <p
+                        className={`text-sm leading-relaxed ${applyFont} ${isGlitch ? 'msg-glitch' : ''}`}
+                        data-text={msg.text || ''}
+                      >
+                        {msg.text}
+                      </p>
+                    )}
                 </div>
                 <div className={`flex items-center gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <span className="text-xs font-mono text-muted-foreground">{msg.time}</span>
@@ -154,7 +187,7 @@ export function ChatWindow({ activeContact, messages, inputText, userId, message
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="px-4 py-3 border-t border-void-border bg-void-surface">
+      <div className="px-4 py-3 border-t border-void-border bg-void-surface/90 backdrop-blur-sm">
         <input
           ref={fileInputRef}
           type="file"
@@ -170,7 +203,7 @@ export function ChatWindow({ activeContact, messages, inputText, userId, message
             <Icon name="Image" size={14} />
           </button>
           <input
-            className="flex-1 bg-void-elevated border border-void-border rounded px-3 py-2 text-sm font-sans text-white placeholder:text-muted-foreground cyber-input"
+            className={`flex-1 bg-void-elevated border border-void-border rounded px-3 py-2 text-sm text-white placeholder:text-muted-foreground cyber-input ${msgFontClass}`}
             placeholder="Сообщение... [зашифровано]"
             value={inputText}
             onChange={e => onInputChange(e.target.value)}
@@ -203,9 +236,11 @@ interface ProfileViewProps {
   onSave: () => void;
   onUploadAvatar: (f: File) => void;
   onLogout: () => void;
+  onThemeChange: (t: string) => void;
+  onFontChange: (f: string) => void;
 }
 
-export function ProfileView({ user, editName, editStatus, profileSaving, avatarInputRef, onEditNameChange, onEditStatusChange, onSave, onUploadAvatar, onLogout }: ProfileViewProps) {
+export function ProfileView({ user, editName, editStatus, profileSaving, avatarInputRef, onEditNameChange, onEditStatusChange, onSave, onUploadAvatar, onLogout, onThemeChange, onFontChange }: ProfileViewProps) {
   return (
     <div className="flex-1 flex flex-col bg-void hex-bg overflow-y-auto">
       <div className="p-6 border-b border-void-border flex items-center justify-between">
@@ -237,7 +272,7 @@ export function ProfileView({ user, editName, editStatus, profileSaving, avatarI
         <p className="text-xs font-mono text-neon-green mb-1">● В СЕТИ</p>
         <p className="text-xs font-mono text-muted-foreground mb-6">@{user.username}</p>
 
-        <div className="w-full max-w-sm space-y-3 mb-4">
+        <div className="w-full max-w-sm space-y-3 mb-6">
           <div>
             <p className="text-xs font-mono text-muted-foreground mb-1 uppercase tracking-widest">Отображаемое имя</p>
             <input
@@ -262,6 +297,50 @@ export function ProfileView({ user, editName, editStatus, profileSaving, avatarI
             <Icon name="Save" size={12} />
             {profileSaving ? 'СОХРАНЯЮ...' : 'СОХРАНИТЬ'}
           </button>
+        </div>
+
+        {/* Темы чата */}
+        <div className="w-full max-w-sm mb-6">
+          <p className="text-xs font-mono text-muted-foreground mb-3 uppercase tracking-widest flex items-center gap-1">
+            <Icon name="Sparkles" size={10} /> Тема чата
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {CHAT_THEMES.map(theme => (
+              <button
+                key={theme.id}
+                onClick={() => onThemeChange(theme.id)}
+                className={`p-2 rounded border text-center transition-all ${user.chat_theme === theme.id ? 'border-neon-red bg-neon-red/10' : 'border-void-border hover:border-void-border/80'}`}
+              >
+                <div className={`w-full h-6 rounded mb-1 theme-${theme.id} border border-white/10`} />
+                <p className="text-xs font-orbitron text-white truncate">{theme.name}</p>
+                <p className="text-xs font-mono text-muted-foreground truncate">{theme.description}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Шрифт сообщений */}
+        <div className="w-full max-w-sm mb-6">
+          <p className="text-xs font-mono text-muted-foreground mb-3 uppercase tracking-widest flex items-center gap-1">
+            <Icon name="Type" size={10} /> Шрифт сообщений
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {MSG_FONTS.map(font => (
+              <button
+                key={font.id}
+                onClick={() => onFontChange(font.id)}
+                className={`p-3 rounded border text-left transition-all ${user.msg_font === font.id ? 'border-neon-red bg-neon-red/10' : 'border-void-border hover:border-void-border/80'}`}
+              >
+                <p className="text-xs font-mono text-muted-foreground mb-1">{font.name}</p>
+                <p
+                  className={`text-sm text-white ${font.className} ${font.id === 'glitch' ? 'msg-glitch' : ''}`}
+                  data-text={font.preview}
+                >
+                  {font.preview}
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="w-full max-w-sm p-4 bg-void-elevated border border-void-border rounded">
@@ -350,3 +429,222 @@ export function AddContactView({ addUsername, addError, addLoading, onUsernameCh
     </div>
   );
 }
+
+// ─── Admin Panel ──────────────────────────────────────────────────────────────
+interface AdminUser {
+  id: number;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  email: string;
+  status: string;
+  online_status: string;
+  created_at: string;
+}
+
+interface AdminMessage {
+  id: number;
+  sender_id: number;
+  receiver_id: number;
+  text: string | null;
+  image_url: string | null;
+  msg_type: string;
+  time: string;
+  sender_name: string;
+  receiver_name: string;
+}
+
+import { api } from '@/lib/api';
+
+export function AdminPanel() {
+  const [authed, setAuthed] = useState(!!localStorage.getItem('inferno_admin_token'));
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [selectedPair, setSelectedPair] = useState<[number, number] | null>(null);
+  const [chatMsgs, setChatMsgs] = useState<AdminMessage[]>([]);
+  const [editUser, setEditUser] = useState<AdminUser | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editStatus, setEditStatus] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const loginAdmin = async () => {
+    const res = await api.adminLogin(password);
+    if (res.token) {
+      localStorage.setItem('inferno_admin_token', res.token);
+      setAuthed(true);
+      loadUsers();
+    } else {
+      setLoginError('Неверный пароль');
+    }
+  };
+
+  const loadUsers = async () => {
+    const res = await api.adminGetUsers();
+    if (res.users) setUsers(res.users);
+  };
+
+  const loadChat = async (a: number, b: number) => {
+    setSelectedPair([a, b]);
+    const res = await api.adminGetMessages(a, b);
+    if (res.messages) setChatMsgs(res.messages);
+  };
+
+  const deleteUser = async (id: number) => {
+    if (!confirm('Удалить аккаунт?')) return;
+    await api.adminDeleteUser(id);
+    setUsers(prev => prev.filter(u => u.id !== id));
+  };
+
+  const saveEdit = async () => {
+    if (!editUser) return;
+    setLoading(true);
+    await api.adminEditUser({ id: editUser.id, display_name: editName, status: editStatus });
+    setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, display_name: editName, status: editStatus } : u));
+    setEditUser(null);
+    setLoading(false);
+  };
+
+  if (!authed) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-void hex-bg">
+        <div className="w-full max-w-xs px-6 animate-fade-in-up">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 rounded border border-neon-red mx-auto flex items-center justify-center mb-3 shadow-neon-red">
+              <Icon name="ShieldAlert" size={24} className="text-neon-red" />
+            </div>
+            <h2 className="font-orbitron text-white font-bold tracking-widest">ADMIN ACCESS</h2>
+            <p className="text-xs font-mono text-muted-foreground mt-1">Введите пароль администратора</p>
+          </div>
+          <input
+            type="password"
+            className="w-full bg-void-elevated border border-void-border rounded px-3 py-2.5 text-sm font-mono text-white placeholder:text-muted-foreground cyber-input mb-3"
+            placeholder="Пароль"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && loginAdmin()}
+          />
+          {loginError && <p className="text-xs font-mono text-neon-red mb-3">{loginError}</p>}
+          <button onClick={loginAdmin} className="w-full py-2.5 rounded bg-neon-red hover:bg-red-700 text-white font-orbitron text-xs tracking-widest transition-colors shadow-neon-red">
+            ВОЙТИ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex bg-void overflow-hidden">
+      {/* Users list */}
+      <div className="w-80 flex flex-col border-r border-void-border bg-void-surface">
+        <div className="p-4 border-b border-void-border flex items-center justify-between">
+          <div>
+            <h2 className="font-orbitron text-white font-bold text-sm tracking-widest flex items-center gap-2">
+              <Icon name="ShieldAlert" size={14} className="text-neon-red" /> ADMIN
+            </h2>
+            <p className="text-xs font-mono text-muted-foreground">{users.length} пользователей</p>
+          </div>
+          <button onClick={loadUsers} className="text-muted-foreground hover:text-white transition-colors">
+            <Icon name="RefreshCw" size={14} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {users.length === 0 && (
+            <div className="p-6 text-center">
+              <button onClick={loadUsers} className="text-xs font-orbitron text-neon-red">Загрузить</button>
+            </div>
+          )}
+          {users.map(u => (
+            <div key={u.id} className="border-b border-void-border/50">
+              <div className="px-4 py-3 flex items-center gap-3">
+                <Avatar src={u.avatar_url} name={u.display_name} size={36} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-orbitron text-xs text-white font-semibold truncate">{u.display_name}</p>
+                  <p className="text-xs font-mono text-muted-foreground">@{u.username}</p>
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={() => { setEditUser(u); setEditName(u.display_name); setEditStatus(u.status); }} className="w-6 h-6 rounded border border-void-border hover:border-neon-green/50 hover:text-neon-green text-muted-foreground transition-colors flex items-center justify-center">
+                    <Icon name="Pencil" size={11} />
+                  </button>
+                  <button onClick={() => deleteUser(u.id)} className="w-6 h-6 rounded border border-void-border hover:border-neon-red/50 hover:text-neon-red text-muted-foreground transition-colors flex items-center justify-center">
+                    <Icon name="Trash2" size={11} />
+                  </button>
+                </div>
+              </div>
+              {/* Read chat buttons */}
+              <div className="px-4 pb-2 flex flex-wrap gap-1">
+                {users.filter(other => other.id !== u.id).map(other => (
+                  <button
+                    key={other.id}
+                    onClick={() => loadChat(u.id, other.id)}
+                    className={`text-xs font-mono px-2 py-0.5 rounded border transition-colors ${selectedPair?.[0] === u.id && selectedPair?.[1] === other.id ? 'border-neon-red text-neon-red' : 'border-void-border text-muted-foreground hover:text-white'}`}
+                  >
+                    ↔ @{other.username}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Chat viewer / Edit panel */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {editUser ? (
+          <div className="p-6 animate-fade-in-up">
+            <div className="flex items-center gap-3 mb-6">
+              <button onClick={() => setEditUser(null)} className="text-muted-foreground hover:text-white"><Icon name="ArrowLeft" size={16} /></button>
+              <h2 className="font-orbitron text-white font-bold text-sm">Редактировать @{editUser.username}</h2>
+            </div>
+            <div className="max-w-sm space-y-3">
+              <div>
+                <p className="text-xs font-mono text-muted-foreground mb-1 uppercase tracking-widest">Отображаемое имя</p>
+                <input className="w-full bg-void-elevated border border-void-border rounded px-3 py-2 text-sm text-white cyber-input" value={editName} onChange={e => setEditName(e.target.value)} />
+              </div>
+              <div>
+                <p className="text-xs font-mono text-muted-foreground mb-1 uppercase tracking-widest">Статус</p>
+                <input className="w-full bg-void-elevated border border-void-border rounded px-3 py-2 text-sm text-white cyber-input" value={editStatus} onChange={e => setEditStatus(e.target.value)} />
+              </div>
+              <button onClick={saveEdit} disabled={loading} className="w-full py-2.5 rounded bg-neon-red hover:bg-red-700 text-white font-orbitron text-xs tracking-widest transition-colors shadow-neon-red disabled:opacity-50">
+                {loading ? 'СОХРАНЯЮ...' : 'СОХРАНИТЬ'}
+              </button>
+            </div>
+          </div>
+        ) : selectedPair ? (
+          <>
+            <div className="px-4 py-3 border-b border-void-border bg-void-surface flex items-center gap-2">
+              <Icon name="Eye" size={14} className="text-neon-red" />
+              <span className="font-orbitron text-xs text-white">
+                Переписка #{selectedPair[0]} ↔ #{selectedPair[1]}
+              </span>
+              <span className="text-xs font-mono text-muted-foreground ml-auto">{chatMsgs.length} сообщений</span>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+              {chatMsgs.map(msg => (
+                <div key={msg.id} className={`flex ${msg.sender_id === selectedPair[0] ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-md rounded px-3 py-2 border ${msg.sender_id === selectedPair[0] ? 'bg-neon-red/10 border-neon-red/30' : 'bg-void-elevated border-void-border'}`}>
+                    <p className="text-xs font-mono text-muted-foreground mb-1">@{msg.sender_name} → {msg.time}</p>
+                    {msg.msg_type === 'image' && msg.image_url
+                      ? <img src={msg.image_url} alt="img" className="rounded max-w-[160px]" />
+                      : <p className="text-sm text-white font-sans">{msg.text}</p>}
+                  </div>
+                </div>
+              ))}
+              {chatMsgs.length === 0 && <p className="text-center text-xs font-mono text-muted-foreground">Нет сообщений</p>}
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Icon name="Eye" size={32} className="text-void-border mx-auto mb-3" />
+              <p className="text-xs font-mono text-muted-foreground">Выберите пользователя и переписку</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Re-export NavBtn so Index.tsx doesn't need to import from ui directly
+export { NavBtn };

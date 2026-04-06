@@ -2,6 +2,7 @@ const URLS = {
   auth: 'https://functions.poehali.dev/b465a972-473d-47c6-afea-07d4a5579359',
   profile: 'https://functions.poehali.dev/0b449202-dd89-400e-925e-9ad2e51d18a3',
   messages: 'https://functions.poehali.dev/b1bbbc38-0d0c-4bb6-893a-4ea3c76ae9db',
+  admin: 'https://functions.poehali.dev/bb9aaf8c-56ad-40f5-a058-8819aa0f2927',
 };
 
 function getToken(): string {
@@ -12,6 +13,13 @@ function authHeaders() {
   return {
     'Content-Type': 'application/json',
     'X-Authorization': `Bearer ${getToken()}`,
+  };
+}
+
+function adminHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'X-Admin-Token': localStorage.getItem('inferno_admin_token') || '',
   };
 }
 
@@ -39,7 +47,7 @@ export const api = {
   },
 
   // PROFILE
-  async updateProfile(data: { display_name?: string; status?: string }) {
+  async updateProfile(data: { display_name?: string; status?: string; chat_theme?: string; msg_font?: string }) {
     const r = await fetch(URLS.profile, {
       method: 'PUT',
       headers: authHeaders(),
@@ -96,6 +104,46 @@ export const api = {
       method: 'PUT',
       headers: authHeaders(),
       body: JSON.stringify({ sender_id }),
+    });
+    return r.json();
+  },
+  async deleteChat(withId: number) {
+    const r = await fetch(`${URLS.messages}?with=${withId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    return r.json();
+  },
+
+  // ADMIN
+  async adminLogin(password: string) {
+    const r = await fetch(`${URLS.admin}?action=login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    return r.json();
+  },
+  async adminGetUsers() {
+    const r = await fetch(`${URLS.admin}?action=users`, { headers: adminHeaders() });
+    return r.json();
+  },
+  async adminGetMessages(userA: number, userB: number) {
+    const r = await fetch(`${URLS.admin}?action=messages&user_a=${userA}&user_b=${userB}`, { headers: adminHeaders() });
+    return r.json();
+  },
+  async adminDeleteUser(id: number) {
+    const r = await fetch(`${URLS.admin}?action=user&id=${id}`, {
+      method: 'DELETE',
+      headers: adminHeaders(),
+    });
+    return r.json();
+  },
+  async adminEditUser(data: { id: number; display_name?: string; status?: string }) {
+    const r = await fetch(`${URLS.admin}?action=user`, {
+      method: 'PUT',
+      headers: adminHeaders(),
+      body: JSON.stringify(data),
     });
     return r.json();
   },
