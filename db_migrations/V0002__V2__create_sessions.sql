@@ -1,0 +1,1 @@
+CREATE TABLE t_p30447770_bloodytear_messaging.sessions (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES t_p30447770_bloodytear_messaging.users(id), token VARCHAR(255) UNIQUE NOT NULL, created_at TIMESTAMP DEFAULT NOW(), expires_at TIMESTAMP DEFAULT (NOW() + INTERVAL '30 days'))

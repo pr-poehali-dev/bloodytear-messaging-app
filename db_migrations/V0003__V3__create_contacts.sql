@@ -1,0 +1,1 @@
+CREATE TABLE t_p30447770_bloodytear_messaging.contacts (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES t_p30447770_bloodytear_messaging.users(id), contact_id INTEGER REFERENCES t_p30447770_bloodytear_messaging.users(id), created_at TIMESTAMP DEFAULT NOW(), UNIQUE(user_id, contact_id))

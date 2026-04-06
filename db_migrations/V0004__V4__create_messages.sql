@@ -1,0 +1,1 @@
+CREATE TABLE t_p30447770_bloodytear_messaging.messages (id SERIAL PRIMARY KEY, sender_id INTEGER REFERENCES t_p30447770_bloodytear_messaging.users(id), receiver_id INTEGER REFERENCES t_p30447770_bloodytear_messaging.users(id), text TEXT, image_url TEXT, msg_type VARCHAR(20) DEFAULT 'text', is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW())

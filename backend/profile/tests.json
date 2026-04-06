@@ -1,0 +1,17 @@
+{
+  "tests": [
+    {
+      "name": "GET without token returns 401",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 401
+    },
+    {
+      "name": "PUT without token returns 401",
+      "method": "PUT",
+      "path": "/",
+      "body": {"display_name": "TEST"},
+      "expectedStatus": 401
+    }
+  ]
+}
